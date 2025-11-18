@@ -14,6 +14,12 @@ use {
     },
 };
 
+/// Test LMSR math functions
+///
+/// Expected values (b = 1 SOL = 1e9 lamports):
+/// - Initial cost (q=[0,0]): b*ln(2) = 693,147,180 lamports
+/// - After buying A (q=[1e9,0]): b*ln(e+1) = 1,313,261,688 lamports  
+/// - After buying B (q=[1e9,4e9]): b*ln(e+e^4) = 4,048,587,351 lamports
 #[test]
 fn test_math() {
     let program_id = lmsr::id();
@@ -96,7 +102,7 @@ fn test_math() {
         market.label = label;
         market.initialized_at = std::time::Instant::now().elapsed().as_secs() as u64;
 
-        println!("\n=== Initial State ===");
+        println!("\n=== Initial State (Expected: cost=693147180) ===");
         println!("Supply A: {}", market.supplies[0]);
         println!("Supply B: {}", market.supplies[1]);
         println!("Cost: {}", market.cost().unwrap());

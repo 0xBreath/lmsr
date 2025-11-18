@@ -100,6 +100,22 @@ fn fp_ln(x: u128) -> Result<i128> {
         return Ok(0); // ln(1) = 0
     }
 
+    // Lookup table for common values (improves accuracy)
+    // ln(2) = 0.693147180559945...
+    const LN_2: i128 = 693_147_180;
+    if x == 2 * D9_I128 as u128 {
+        return Ok(LN_2);
+    }
+    // ln(3) = 1.098612288668110...
+    const LN_3: i128 = 1_098_612_288;
+    if x == 3 * D9_I128 as u128 {
+        return Ok(LN_3);
+    }
+    // ln(4) = 2*ln(2)
+    if x == 4 * D9_I128 as u128 {
+        return Ok(2 * LN_2);
+    }
+
     let x_i128 = x as i128;
 
     // For better convergence, use ln(x) = -ln(1/x) if x < 1
@@ -108,10 +124,12 @@ fn fp_ln(x: u128) -> Result<i128> {
         return fp_ln(inv as u128).map(|v| -v);
     }
 
-    // For x > 2, use ln(x) = ln(x/e) + 1 to bring closer to 1
+    // For x > 1.5, use ln(x) = ln(x/e) + 1 to bring closer to 1
+    // This improves convergence of the Taylor series
     // e ≈ 2.718281828, scaled = 2718281828
     const E_SCALED: i128 = 2_718_281_828;
-    if x > (2 * D9_I128 as u128) {
+    const THRESHOLD: u128 = (3 * D9_I128 as u128) / 2; // 1.5 scaled
+    if x > THRESHOLD {
         let reduced = (x_i128 * D9_I128) / E_SCALED;
         return fp_ln(reduced as u128).map(|v| v + D9_I128);
     }
@@ -130,7 +148,6 @@ fn fp_ln(x: u128) -> Result<i128> {
         if term.abs() < 1 {
             break;
         }
-
         result = result
             .checked_add(term)
             .ok_or(error!(ErrorCode::MathOverflow))?;
