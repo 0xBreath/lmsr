@@ -161,11 +161,13 @@ impl Market {
         const SCALE: i128 = 1_000_000_000; // 1e9 for fixed-point
 
         // Calculate Σ exp(q_i / b)
-        // Supplies are stored scaled by 1e9, so q_i / b gives ratio scaled by 1e9
+        // Supplies are stored scaled by 1e9, b is in lamports
+        // We need (q / 1e9) / (b / 1e9) = q / b, then scale by 1e9 for fp_exp
+        // Simplified: (q * 1e9) / b
         let mut sum_exp: u128 = 0;
         for i in 0..n {
             let q_i_scaled = self.supplies[i] as i128;
-            let exp_arg = q_i_scaled / (b as i128); // q_scaled / b gives ratio scaled by 1e9
+            let exp_arg = (q_i_scaled * SCALE) / (b as i128);
             let exp_val = fp_exp(exp_arg)?;
             sum_exp = sum_exp
                 .checked_add(exp_val)
@@ -201,13 +203,13 @@ impl Market {
         // Δq = b * ln(S * (exp(amount_in/b) - 1) / exp(q_i/b) + 1)
 
         // S = Σ exp(q_j / b)
-        // Note: supplies are stored scaled by 1e9, b is in lamports
-        // So (q_j / 1e9) / b gives the dimensionless ratio
-        // Simplified: q_j / (b * 1e9) then scale by 1e9 for fp_exp: (q_j * 1e9) / (b * 1e9) = q_j / b
+        // Supplies are stored scaled by 1e9, b is in lamports
+        // We need (q / 1e9) / (b / 1e9) = q / b, then scale by 1e9 for fp_exp
+        // Simplified: (q * 1e9) / b
         let mut sum_exp: u128 = 0;
         for i in 0..n {
-            let q_j_scaled = self.supplies[i] as i128; // Already scaled by 1e9
-            let exp_arg = q_j_scaled / (b as i128); // q_scaled / b gives ratio scaled by 1e9
+            let q_j_scaled = self.supplies[i] as i128;
+            let exp_arg = (q_j_scaled * D9_I128) / (b as i128);
             let exp_val = fp_exp(exp_arg)?;
             sum_exp = sum_exp
                 .checked_add(exp_val)
@@ -216,7 +218,7 @@ impl Market {
 
         // exp(q_i / b)
         let q_i_scaled = self.supplies[outcome_index] as i128;
-        let exp_qi_b = fp_exp(q_i_scaled / (b as i128))?;
+        let exp_qi_b = fp_exp((q_i_scaled * D9_I128) / (b as i128))?;
 
         // exp(amount_in / b)
         let amount_scaled = (amount_in as i128) * D9_I128;
@@ -279,15 +281,17 @@ impl Market {
         check_condition!(b > 0, LiquidityParameterIsZero);
 
         // Calculate exp(q_i / b) for the target outcome
-        // Supplies are stored scaled by 1e9, so q_i / b gives ratio scaled by 1e9
+        // Supplies are stored scaled by 1e9, b is in lamports
+        // We need (q / 1e9) / (b / 1e9) = q / b, then scale by 1e9 for fp_exp
+        // Simplified: (q * 1e9) / b
         let q_i_scaled = self.supplies[outcome_index] as i128;
-        let exp_qi_b = fp_exp(q_i_scaled / (b as i128))?;
+        let exp_qi_b = fp_exp((q_i_scaled * D9_I128) / (b as i128))?;
 
         // Calculate Σ exp(q_j / b) for all outcomes
         let mut sum_exp: u128 = 0;
         for i in 0..n {
             let q_j_scaled = self.supplies[i] as i128;
-            let exp_arg = q_j_scaled / (b as i128);
+            let exp_arg = (q_j_scaled * D9_I128) / (b as i128);
             let exp_val = fp_exp(exp_arg)?;
             sum_exp = sum_exp
                 .checked_add(exp_val)
